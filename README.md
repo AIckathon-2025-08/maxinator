@@ -83,5 +83,8 @@ Copy
 Edit
 docker-compose down
 docker-compose build
+sql
 Copy
 Edit
+
+2) Delete the duplicate `Readme.md` file from the repo (open it → trash icon → commit).
