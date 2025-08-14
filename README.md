@@ -27,14 +27,11 @@ Maxinator is a post-ironic “Two Truths and a Lie” party game. The host submi
 ```bash
 npm install
 npm run dev
-Frontend: http://localhost:3000
 
+Frontend: http://localhost:3000
 Backend + WebSocket: http://localhost:5001
 
 Project Structure
-text
-Copy
-Edit
 backend/
   server.js
 frontend/
@@ -50,38 +47,23 @@ Dockerfile
 docker-compose.yml
 package.json
 README.md
+
 Deploying to Production (without Docker)
-bash
-Copy
-Edit
 npm run build
 NODE_ENV=production npm start
-Serves API + built frontend on port 5001.
+# serves API + built frontend on port 5001
 
 Running with Docker
 Production
-bash
-Copy
-Edit
 docker-compose up
-Served at http://localhost:9000.
+# served at http://localhost:9000
 
 Development
-bash
-Copy
-Edit
 docker-compose --profile dev up maxinator-dev
-Mounts local code
-
-Runs npm run dev in the container
-
-Ports: frontend 3000, backend 5001
+# mounts local code
+# runs `npm run dev` in the container
+# ports: frontend 3000, backend 5001
 
 Stop / Rebuild
-bash
-Copy
-Edit
 docker-compose down
 docker-compose build
-Copy
-Edit
