@@ -32,7 +32,7 @@ Frontend: http://localhost:3000
 Backend + WebSocket: http://localhost:5001
 
 Project Structure
-pgsql
+text
 Copy
 Edit
 backend/
@@ -83,3 +83,5 @@ Copy
 Edit
 docker-compose down
 docker-compose build
+Copy
+Edit
