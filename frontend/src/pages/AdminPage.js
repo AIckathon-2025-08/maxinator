@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
+const API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5001';
+
 export default function AdminPage() {
   const [name, setName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -9,16 +11,12 @@ export default function AdminPage() {
   const [correctIndex, setCorrectIndex] = useState('');
 
   const startGame = async () => {
-    await axios.post('http://localhost:5001/start', {
-      name,
-      avatarUrl,
-      statements
-    });
+    await axios.post(`${API}/start`, { name, avatarUrl, statements });
   };
 
   const reveal = async () => {
     if (correctIndex === '') return;
-    await axios.post('http://localhost:5001/reveal', { correctIndex: Number(correctIndex) });
+    await axios.post(`${API}/reveal`, { correctIndex: Number(correctIndex) });
   };
 
   return (
@@ -27,20 +25,10 @@ export default function AdminPage() {
         <h1 className="title">Maxinator — Admin</h1>
 
         <label className="label">Player name</label>
-        <input
-          className="input"
-          placeholder="Player name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
+        <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="Player name" />
 
         <label className="label">Avatar URL</label>
-        <input
-          className="input"
-          placeholder="https://..."
-          value={avatarUrl}
-          onChange={e => setAvatarUrl(e.target.value)}
-        />
+        <input className="input" value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} placeholder="https://..." />
 
         <div className="stack">
           {statements.map((s, i) => (
@@ -63,11 +51,7 @@ export default function AdminPage() {
 
       <div className="card">
         <h2 className="subtitle">Reveal</h2>
-        <select
-          className="input"
-          value={correctIndex}
-          onChange={e => setCorrectIndex(e.target.value)}
-        >
+        <select className="input" value={correctIndex} onChange={e => setCorrectIndex(e.target.value)}>
           <option value="">Select the lie</option>
           <option value={0}>Statement 1</option>
           <option value={1}>Statement 2</option>

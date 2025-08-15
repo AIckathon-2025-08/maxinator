@@ -1,87 +1,93 @@
 // backend/server.js
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const cors = require('cors');
 const { Server } = require('socket.io');
-const path = require('path');
 
 const app = express();
-app.use(cors());
+const server = http.createServer(app);
+
+// CORS: local dev uses 3000, production = same origin
+const corsOrigin = process.env.NODE_ENV === 'production' ? true : 'http://localhost:3000';
+app.use(cors({ origin: corsOrigin, methods: ['GET', 'POST'] }));
 app.use(express.json());
 
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
-
-let game = {
-  player: null,            // { name, avatarUrl }
-  statements: [],          // [str, str, str]
-  votes: {},               // { voterName: choiceIndex }
-  timer: 60,               // seconds
-  reveal: false,           // boolean
-  correctIndex: null       // 0|1|2|null
-};
-let timerInterval = null;
-
-app.get('/', (_, res) => res.send('Maxinator backend running'));
-
-app.get('/state', (_, res) => {
-  res.json(game);
+const io = new Server(server, {
+  cors: { origin: corsOrigin, methods: ['GET', 'POST'] }
 });
 
-app.post('/start', (req, res) => {
-  const { name, avatarUrl, statements } = req.body;
-  if (!name || !avatarUrl || !Array.isArray(statements) || statements.length !== 3) {
-    return res.status(400).send({ error: 'Invalid data' });
-  }
+// --- in-memory game state ---
+let game = {
+  player: null,                // { name, avatarUrl }
+  statements: ['', '', ''],    // [s1, s2, s3]
+  votes: {},                   // { voterName: choiceIndex }
+  timer: 60,
+  interval: null,
+  reveal: false,
+  correctIndex: null
+};
 
-  game = {
-    player: { name, avatarUrl },
-    statements,
-    votes: {},
-    timer: 60,
-    reveal: false,
-    correctIndex: null
-  };
+function resetVotes() {
+  game.votes = {};
+}
 
-  io.emit('gameStarted', game);
-
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    if (game.timer > 0) {
-      game.timer -= 1;
-      io.emit('timerUpdate', game.timer);
-    } else {
-      clearInterval(timerInterval);
-      timerInterval = null;
+function startTimer(seconds = 60) {
+  if (game.interval) clearInterval(game.interval);
+  game.timer = seconds;
+  game.interval = setInterval(() => {
+    game.timer -= 1;
+    io.emit('timerUpdate', game.timer);
+    if (game.timer <= 0) {
+      clearInterval(game.interval);
+      game.interval = null;
       io.emit('timeUp', game.votes);
     }
   }, 1000);
+}
 
+// --- routes ---
+app.post('/start', (req, res) => {
+  const { name, avatarUrl, statements } = req.body;
+  game.player = { name, avatarUrl };
+  game.statements = statements || ['', '', ''];
+  game.reveal = false;
+  game.correctIndex = null;
+  resetVotes();
+  startTimer(60);
+  io.emit('gameStarted', { player: game.player, statements: game.statements, timer: game.timer });
   res.send({ status: 'ok' });
+});
+
+app.get('/state', (req, res) => {
+  res.send({
+    player: game.player,
+    statements: game.statements,
+    votes: game.votes,
+    timer: game.timer,
+    reveal: game.reveal,
+    correctIndex: game.correctIndex
+  });
 });
 
 app.post('/vote', (req, res) => {
   const { voterName, choiceIndex } = req.body;
-  if (!voterName || choiceIndex == null || choiceIndex < 0 || choiceIndex > 2) {
-    return res.status(400).send({ error: 'Invalid vote' });
-  }
-  game.votes[voterName] = choiceIndex;
+  if (!voterName || choiceIndex == null) return res.status(400).send({ error: 'bad' });
+  if (!game.interval && game.timer <= 0) return res.status(400).send({ error: 'time' });
+  game.votes[voterName] = Number(choiceIndex);
   io.emit('voteUpdate', game.votes);
   res.send({ status: 'ok' });
 });
 
 app.post('/reveal', (req, res) => {
   const { correctIndex } = req.body;
-  if (correctIndex == null || correctIndex < 0 || correctIndex > 2) {
-    return res.status(400).send({ error: 'Invalid index' });
-  }
-  game.correctIndex = correctIndex;
+  game.correctIndex = Number(correctIndex);
   game.reveal = true;
-  io.emit('reveal', correctIndex);
+  io.emit('reveal', game.correctIndex);
   res.send({ status: 'ok' });
 });
 
-// Serve built frontend in production
+// serve frontend in production
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../frontend/build')));
   app.get('*', (_req, res) => {

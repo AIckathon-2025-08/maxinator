@@ -3,7 +3,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5001');
+const API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5001';
+const SOCKET_URL = process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5001';
+const socket = io(SOCKET_URL);
 
 export default function ResultsPage() {
   const [player, setPlayer] = useState(null);
@@ -14,7 +16,7 @@ export default function ResultsPage() {
   const [timer, setTimer] = useState(60);
 
   useEffect(() => {
-    axios.get('http://localhost:5001/state').then(({ data }) => {
+    axios.get(`${API}/state`).then(({ data }) => {
       setPlayer(data.player);
       setStatements(data.statements || []);
       setVotes(data.votes || {});
@@ -35,10 +37,7 @@ export default function ResultsPage() {
     });
     socket.on('voteUpdate', v => setVotes(v));
     socket.on('timeUp', v => setVotes(v));
-    socket.on('reveal', idx => {
-      setCorrectIndex(idx);
-      setReveal(true);
-    });
+    socket.on('reveal', idx => { setCorrectIndex(idx); setReveal(true); });
     socket.on('timerUpdate', t => setTimer(t));
     return () => {
       socket.off('gameStarted');
@@ -51,9 +50,7 @@ export default function ResultsPage() {
 
   const buckets = useMemo(() => {
     const b = [[], [], []];
-    Object.entries(votes).forEach(([voter, idx]) => {
-      if (idx >= 0 && idx < 3) b[idx].push(voter);
-    });
+    Object.entries(votes).forEach(([voter, idx]) => { if (idx >= 0 && idx < 3) b[idx].push(voter); });
     return b;
   }, [votes]);
 
@@ -83,11 +80,8 @@ export default function ResultsPage() {
                     <div className="panel__body">{s}</div>
                     <div className="panel__count">{buckets[i].length} vote(s)</div>
                     <div className="panel__voters">
-                      {buckets[i].length === 0 ? (
-                        <span className="muted">No voters</span>
-                      ) : (
-                        buckets[i].map(v => <span key={v} className="chip">{v}</span>)
-                      )}
+                      {buckets[i].length === 0 ? <span className="muted">No voters</span> :
+                        buckets[i].map(v => <span key={v} className="chip">{v}</span>)}
                     </div>
                     {isLie && <div className="ribbon">Lie</div>}
                   </div>

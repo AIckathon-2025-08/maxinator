@@ -3,7 +3,9 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:5001');
+const API = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5001';
+const SOCKET_URL = process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5001';
+const socket = io(SOCKET_URL);
 
 export default function VotePage() {
   const [player, setPlayer] = useState(null);
@@ -16,11 +18,11 @@ export default function VotePage() {
   const [correctIndex, setCorrectIndex] = useState(null);
 
   useEffect(() => {
-    axios.get('http://localhost:5001/state').then(({ data }) => {
+    axios.get(`${API}/state`).then(({ data }) => {
       setPlayer(data.player);
-      setStatements(data.statements);
+      setStatements(data.statements || []);
       setTimer(data.timer);
-      setReveal(data.reveal);
+      setReveal(Boolean(data.reveal));
       setCorrectIndex(data.correctIndex);
     });
   }, []);
@@ -37,10 +39,7 @@ export default function VotePage() {
     });
     socket.on('timerUpdate', t => setTimer(t));
     socket.on('timeUp', () => setSubmitted(true));
-    socket.on('reveal', idx => {
-      setReveal(true);
-      setCorrectIndex(idx);
-    });
+    socket.on('reveal', idx => { setReveal(true); setCorrectIndex(idx); });
     return () => {
       socket.off('gameStarted');
       socket.off('timerUpdate');
@@ -51,10 +50,7 @@ export default function VotePage() {
 
   const submit = async () => {
     if (!voterName || choice == null) return;
-    await axios.post('http://localhost:5001/vote', {
-      voterName,
-      choiceIndex: choice
-    });
+    await axios.post(`${API}/vote`, { voterName, choiceIndex: choice });
     setSubmitted(true);
   };
 
@@ -63,7 +59,6 @@ export default function VotePage() {
       <div className="card">
         <h1 className="title">Maxinator — Vote</h1>
         <div className="timer">{timer > 0 ? `${timer}s left` : 'Time is up'}</div>
-
         {!player ? (
           <div className="muted">Waiting for the admin to start…</div>
         ) : (
@@ -73,36 +68,22 @@ export default function VotePage() {
               <div className="name">{player.name}</div>
             </div>
 
-            <input
-              className="input"
-              placeholder="Your name"
-              value={voterName}
-              onChange={e => setVoterName(e.target.value)}
-              disabled={submitted || timer === 0}
-            />
+            <input className="input" placeholder="Your name" value={voterName}
+              onChange={e => setVoterName(e.target.value)} disabled={submitted || timer === 0} />
 
             <div className="stack">
               {statements.map((s, i) => (
                 <label key={i} className={`option ${choice === i ? 'option--selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="vote"
-                    value={i}
-                    onChange={() => setChoice(i)}
-                    disabled={submitted || timer === 0}
-                  />
+                  <input type="radio" name="vote" value={i}
+                    onChange={() => setChoice(i)} disabled={submitted || timer === 0} />
                   <span>{s}</span>
                 </label>
               ))}
             </div>
 
             {!submitted ? (
-              <button className="btn btn--primary" onClick={submit} disabled={timer === 0}>
-                Submit Vote
-              </button>
-            ) : (
-              <div className="muted">Vote submitted</div>
-            )}
+              <button className="btn btn--primary" onClick={submit} disabled={timer === 0}>Submit Vote</button>
+            ) : <div className="muted">Vote submitted</div>}
 
             {reveal && correctIndex != null && (
               <div className="badge badge--reveal">Lie: Statement {correctIndex + 1}</div>
